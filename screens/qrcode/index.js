@@ -1,19 +1,31 @@
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import React, { useState } from 'react'
-
+import instance from '../../api/api_instance';
 const QRCodeScreen = ({ navigation }) => {
   const [inputValue, setInputValue] = useState('')
 
-  const generateNewCode = () => {
+  const generateNewCode = async () => {
     // Generate a random 6-8 digit code
     const randomCode = Math.random().toString().slice(2, 8).toUpperCase()
     setInputValue(randomCode)
   }
 
-  const handleConfirm = () => {
-    navigation?.navigate('Permission')
+  const handleConfirm = async() => {
+    // navigation?.navigate('Permission')
     if (inputValue.trim()) {
-      console.log('Code confirmed:', inputValue)
+
+  try {
+    const response = await instance.post('/devices/bind', {
+      trackId: inputValue.trim(),
+    });
+    console.log(response);
+    
+    
+
+  } catch (error) {
+    console.error('Error binding device:', error);
+  }
+ 
       // Add your confirmation logic here
        // Example navigation
     }
