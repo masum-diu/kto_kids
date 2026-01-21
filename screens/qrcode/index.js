@@ -1,33 +1,50 @@
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import instance from '../../api/api_instance';
+import DeviceInfo from 'react-native-device-info';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const QRCodeScreen = ({ navigation }) => {
   const [inputValue, setInputValue] = useState('')
+  const [deviceId, setDeviceId] = useState({ id: null, brand: null })
+  const [data, setData] = useState(null)
+  // console.log("Device ID:", deviceId);
+  useEffect(() => {
+    const getDeviceInfo = async () => {
+      const id = await DeviceInfo.getUniqueId();
+      const brand = DeviceInfo.getBrand();
+      setDeviceId({ id, brand });
 
-  const generateNewCode = async () => {
-    // Generate a random 6-8 digit code
-    const randomCode = Math.random().toString().slice(2, 8).toUpperCase()
-    setInputValue(randomCode)
-  }
+    };
+    getDeviceInfo();
+  }, [])
 
-  const handleConfirm = async() => {
-    // navigation?.navigate('Permission')
+  const handleConfirm = async () => {
     if (inputValue.trim()) {
 
-  try {
-    const response = await instance.post('/devices/bind', {
-      trackId: inputValue.trim(),
-    });
-    console.log(response);
-    
-    
+      try {
+        const response = await instance.post('/devices/bind', {
+          trackId: inputValue.trim(),
+          deviceId: deviceId.id,
+          deviceBrand: deviceId.brand
+        });
+        console.log(response?.data?.success)
+      //  const responseData = response?.data?.success;
+        // Handle AsyncStorage - only set if data exists, otherwise remove
+        if (response?.data?.success !== null && response?.data?.success !== undefined) {
+          await AsyncStorage.setItem('connectedDevice', JSON.stringify(response?.data?.success));
+        } else {
+          await AsyncStorage.removeItem('connectedDevice');
+        }
+        
+         navigation.navigate('ConnectedScreen')
 
-  } catch (error) {
-    console.error('Error binding device:', error);
-  }
- 
+      } catch (error) {
+        console.error('Error binding device:', error);
+      }
+
       // Add your confirmation logic here
-       // Example navigation
+      // Example navigation
     }
   }
 
@@ -46,7 +63,7 @@ const QRCodeScreen = ({ navigation }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
@@ -65,18 +82,18 @@ const QRCodeScreen = ({ navigation }) => {
                 maxLength={8}
                 editable={true}
               />
-             
+
             </View>
           </View>
 
           {/* Info Box */}
-        
+
         </View>
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          
-          
+
+
           <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleConfirm}>
             <Text style={[styles.buttonText, styles.primaryButtonText]}>✓ Confirm</Text>
           </TouchableOpacity>

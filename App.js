@@ -5,6 +5,7 @@ import Onboarding from "./screens/onboarding";
 import WhoseDevices from "./screens/WhoseDevices";
 import QRCodeScreen from "./screens/qrcode";
 import Permission from "./screens/Permission";
+import ConnectedScreen from "./screens/connected";
 
 const Stack = createNativeStackNavigator();
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
           <Stack.Screen name="Onboarding" component={Onboarding} />
             <Stack.Screen name="WhoseDevices" component={WhoseDevices} />
             <Stack.Screen name="QRCodeScreen" component={QRCodeScreen} />
+            <Stack.Screen name="ConnectedScreen" component={ConnectedScreen} />
             <Stack.Screen name="Permission" component={Permission} />
         </Stack.Navigator>
       </NavigationContainer>
