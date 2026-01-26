@@ -14,7 +14,7 @@ const { width } = Dimensions.get('window')
 
 const ConnectedScreen = () => {
     const [connectedDevice, setConnectedDevice] = useState(null);
-    // console.log(connectedDevice)
+     console.log(connectedDevice, "connectedDevice state")
     useEffect(() => {
 
         const fetchConnectedDevice = async () => {
@@ -88,6 +88,10 @@ const ConnectedScreen = () => {
                         <View style={styles.featureItem}>
                             <Text style={styles.featureIcon}>📱</Text>
                             <Text style={styles.featureText}>App Control</Text>
+                        </View>
+                        <View style={styles.featureItem}>
+                            <Text style={styles.featureIcon}>📷</Text>
+                            <Text style={styles.featureText}>Camera</Text>
                         </View>
                     </View>
                 </View>
