@@ -3,41 +3,62 @@ import React, { useState, useEffect } from 'react'
 import instance from '../../api/api_instance';
 import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import messaging from '@react-native-firebase/messaging';
+
 
 const QRCodeScreen = ({ navigation }) => {
   const [inputValue, setInputValue] = useState('')
-  const [deviceId, setDeviceId] = useState({ id: null, brand: null })
+  const [deviceId, setDeviceId] = useState({ id: null, brand: null, token: null })
+  console.log(deviceId, "device")
   const [data, setData] = useState(null)
   // console.log("Device ID:", deviceId);
+  //   useEffect(() => {
+  //   const initFCM = async () => {
+  //     const authStatus = await messaging().requestPermission();
+
+  //     const token = await messaging().getToken();
+  //     console.log('FCM Token:', token);
+  //   };
+
+  //   initFCM();
+  // }, []);
+
   useEffect(() => {
     const getDeviceInfo = async () => {
       const id = await DeviceInfo.getUniqueId();
       const brand = DeviceInfo.getBrand();
-      setDeviceId({ id, brand });
+      const token = await messaging().getToken();
+      await AsyncStorage.setItem('deviceToken', token);
+      setDeviceId({ id, brand, token });
 
     };
     getDeviceInfo();
   }, [])
 
   const handleConfirm = async () => {
+
     if (inputValue.trim()) {
 
       try {
+        const gettoken = await AsyncStorage.getItem('deviceToken');
+        console.log("Stored device token:", gettoken);
         const response = await instance.post('/devices/bind', {
           trackId: inputValue.trim(),
           deviceId: deviceId.id,
-          deviceBrand: deviceId.brand
+          deviceBrand: deviceId.brand,
+          deviceToken: gettoken,
+
         });
-        console.log(response?.data?.success)
-      //  const responseData = response?.data?.success;
+        console.log(response?.data, "bind response");
+        //  const responseData = response?.data?.success;
         // Handle AsyncStorage - only set if data exists, otherwise remove
         if (response?.data?.success !== null && response?.data?.success !== undefined) {
           await AsyncStorage.setItem('connectedDevice', JSON.stringify(response?.data?.success));
         } else {
           await AsyncStorage.removeItem('connectedDevice');
         }
-        
-         navigation.navigate('ConnectedScreen')
+
+        // navigation.navigate('ConnectedScreen')
 
       } catch (error) {
         console.error('Error binding device:', error);
