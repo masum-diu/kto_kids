@@ -79,24 +79,24 @@ const Permission = ({ navigation }) => {
     
   }
 
-  // const handleLockCommand = (data) => {
-  //   let message = "Device locked by parent"
+  const handleLockCommand = (data) => {
+    let message = "Device locked by parent"
 
-  //   try {
-  //     if (data.options) {
-  //       const parsed = JSON.parse(data.options)
-  //       if (parsed?.message) message = parsed.message
-  //     }
-  //   } catch (e) { }
+    try {
+      if (data.options) {
+        const parsed = JSON.parse(data.options)
+        if (parsed?.message) message = parsed.message
+      }
+    } catch (e) { }
 
-  //   Alert.alert("Notice", message)
+    Alert.alert("Notice", message)
 
-  //   if (ScreenLock?.lock) {
-  //     ScreenLock.lock()
-  //   } else {
-  //     console.log("❌ ScreenLock native module not found")
-  //   }
-  // }
+    if (ScreenLock?.lock) {
+      ScreenLock.lock()
+    } else {
+      console.log("❌ ScreenLock native module not found")
+    }
+  }
   // const takePhoto = async () => {
   //   if (!permissions.remoteCamera) {
   //     Alert.alert("Camera not allowed");
