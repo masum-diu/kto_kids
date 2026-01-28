@@ -10,44 +10,32 @@ const QRCodeScreen = ({ navigation }) => {
   const [inputValue, setInputValue] = useState('')
   const [deviceId, setDeviceId] = useState({ id: null, brand: null, token: null })
   console.log(deviceId, "device")
-  const [data, setData] = useState(null)
-  // console.log("Device ID:", deviceId);
-  //   useEffect(() => {
-  //   const initFCM = async () => {
-  //     const authStatus = await messaging().requestPermission();
 
-  //     const token = await messaging().getToken();
-  //     console.log('FCM Token:', token);
-  //   };
-
-  //   initFCM();
-  // }, []);
 
   useEffect(() => {
     const getDeviceInfo = async () => {
       const id = await DeviceInfo.getUniqueId();
       const brand = DeviceInfo.getBrand();
       const token = await messaging().getToken();
-      await AsyncStorage.setItem('deviceToken', token);
       setDeviceId({ id, brand, token });
 
     };
     getDeviceInfo();
   }, [])
 
+
   const handleConfirm = async () => {
 
     if (inputValue.trim()) {
 
       try {
-        const gettoken = await AsyncStorage.getItem('deviceToken');
-        console.log("Stored device token:", gettoken);
+
+
         const response = await instance.post('/devices/bind', {
           trackId: inputValue.trim(),
-          deviceId: deviceId.id,
+          deviceId: deviceId.token,
           deviceBrand: deviceId.brand,
-          deviceToken: gettoken,
-
+          // deviceToken: deviceId.brand,
         });
         console.log(response?.data, "bind response");
         //  const responseData = response?.data?.success;

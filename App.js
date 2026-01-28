@@ -19,7 +19,7 @@ export default function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Onboarding" component={Onboarding} />
           <Stack.Screen name="WhoseDevices" component={WhoseDevices} />
-          <Stack.Screen name="QRCodeScreen" component={QRCodeScreen} />
+          {/* <Stack.Screen name="QRCodeScreen" component={QRCodeScreen} /> */}
           <Stack.Screen name="ConnectedScreen" component={ConnectedScreen} />
           <Stack.Screen name="Permission" component={Permission} />
         </Stack.Navigator>

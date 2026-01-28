@@ -39,7 +39,7 @@ const WhoseDevices = () => {
       {/* </View> */}
 
       <View style={styles.buttonWrapper}>
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate("QRCodeScreen")}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate("Permission")}>
           <Text style={styles.secondaryButtonText}>Kids’ devices</Text>
         </TouchableOpacity>
       </View>
