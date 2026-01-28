@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -16,11 +16,16 @@ import {
 } from 'react-native'
 import { check, PERMISSIONS, RESULTS } from 'react-native-permissions'
 import messaging from '@react-native-firebase/messaging'
+import { Camera, useCameraDevice } from 'react-native-vision-camera'
+import ViewShot from 'react-native-view-shot'
 
 const { ScreenLock } = NativeModules
 
 const Permission = ({ navigation }) => {
 
+  const cameraRef = useRef(null)
+  const device = useCameraDevice('front')
+  const viewShotRef = useRef(null)
   /* ================= STATE ================= */
 
   const [permissions, setPermissions] = useState({
@@ -53,10 +58,10 @@ const Permission = ({ navigation }) => {
         break
 
       case "TAKE_PHOTO":
-        // next step later
+        takePhoto(data)
         break
       case "SCREENSHOT":
-        screenShort(data)
+        takeScreenshot(data)
         // next step later
         break
 
@@ -65,7 +70,7 @@ const Permission = ({ navigation }) => {
     }
   }
 
-  const screenShort = (data) => {
+  const takeScreenshot = (data) => {
     console.log(data, "screenshot command data")
     let message = "Screenshot taken by parent"
     try {
@@ -76,7 +81,29 @@ const Permission = ({ navigation }) => {
     } catch (e) { }
     Alert.alert("Notice", message)
 
-    
+    viewShotRef.current.capture().then(uri => {
+      console.log("Screenshot captured:", uri)
+      // Here you can upload the image URI to your server
+      // e.g., uploadFile(uri)
+    }).catch(error => {
+      console.error("Oops, screenshot failed", error)
+    })
+  }
+
+  const takePhoto = async (data) => {
+    if (cameraRef.current) {
+      Alert.alert("Notice", "Taking a photo as requested by parent.")
+      try {
+        const photo = await cameraRef.current.takePhoto()
+        console.log("Photo captured:", photo.path)
+        // Here you can upload the photo to your server
+        // e.g., uploadFile(photo.path)
+      } catch (e) {
+        console.error("Failed to take photo", e)
+      }
+    } else {
+      Alert.alert("Error", "Camera is not ready.")
+    }
   }
 
   const handleLockCommand = (data) => {
@@ -97,30 +124,7 @@ const Permission = ({ navigation }) => {
       console.log("❌ ScreenLock native module not found")
     }
   }
-  // const takePhoto = async () => {
-  //   if (!permissions.remoteCamera) {
-  //     Alert.alert("Camera not allowed");
-  //     return;
-  //   }
 
-  //   if (cameraRef.current) {
-  //     const options = { quality: 0.7, base64: true };
-  //     const photoData = await cameraRef.current.takePictureAsync(options);
-
-  //     console.log("Photo captured:", photoData.uri);
-
-  //     // Upload to server
-  //     try {
-  //       await axios.post('https://yourserver.com/upload', {
-  //         childId: 'child_123',
-  //         image: photoData.base64
-  //       });
-  //       console.log("Photo sent to server");
-  //     } catch (e) {
-  //       console.log("Upload failed:", e);
-  //     }
-  //   }
-  // };
   /* ================= REAL PERMISSION HANDLER ================= */
 
   const handlePermission = async (key) => {
@@ -228,49 +232,62 @@ const Permission = ({ navigation }) => {
   /* ================= RENDER ================= */
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Image source={require("../../assets/angle-small-left.png")} style={styles.backIcon} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Permissions</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }} style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        {/* Hidden Camera for remote capture */}
+        {permissions.remoteCamera && device && (
+          <Camera
+            ref={cameraRef}
+            style={styles.hiddenCamera}
+            device={device}
+            isActive={true}
+            captureAudio={false}
+          />
+        )}
 
-      {/* Intro */}
-      <View style={styles.headerSection}>
-        <Text style={styles.headerIcon}>🔒</Text>
-        <Text style={styles.headerText}>App Permissions</Text>
-        <Text style={styles.headerSubtext}>
-          All permissions must be enabled to continue
-        </Text>
-      </View>
-
-      <ScrollView>
-        <View style={styles.permissionsList}>
-          <PermissionItem title="Usage Limits" subtitle="Control screen & app time" permissionKey="usageLimits" icon="⏱️" />
-          <PermissionItem title="Display Over Apps" subtitle="Show alerts over apps" permissionKey="displayOverApps" icon="💬" />
-          <PermissionItem title="Remote Camera" subtitle="Allow photo capture" permissionKey="remoteCamera" icon="📷" />
-          <PermissionItem title="One-Way Audio" subtitle="Allow microphone access" permissionKey="oneWayAudio" icon="🔊" />
-          <PermissionItem title="Live Location" subtitle="Track device location" permissionKey="liveLocation" icon="📍" />
-          <PermissionItem title="Usage Report" subtitle="View app usage" permissionKey="usageReport" icon="📊" />
-          <PermissionItem title="Run in Background" subtitle="Keep monitoring active" permissionKey="keepBackground" icon="🔄" />
-          <PermissionItem title="Battery Optimization" subtitle="Prevent system kill" permissionKey="superBattery" icon="🔋" />
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Image source={require("../../assets/angle-small-left.png")} style={styles.backIcon} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Permissions</Text>
+          <View style={{ width: 24 }} />
         </View>
-      </ScrollView>
 
-      {/* Confirm */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          disabled={!allAllowed}
-          style={[styles.confirmButton, { opacity: allAllowed ? 1 : 0.5 }]}
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Text style={styles.confirmButtonText}>✓ Confirm all permissions</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        {/* Intro */}
+        <View style={styles.headerSection}>
+          <Text style={styles.headerIcon}>🔒</Text>
+          <Text style={styles.headerText}>App Permissions</Text>
+          <Text style={styles.headerSubtext}>
+            All permissions must be enabled to continue
+          </Text>
+        </View>
+
+        <ScrollView>
+          <View style={styles.permissionsList}>
+            <PermissionItem title="Usage Limits" subtitle="Control screen & app time" permissionKey="usageLimits" icon="⏱️" />
+            <PermissionItem title="Display Over Apps" subtitle="Show alerts over apps" permissionKey="displayOverApps" icon="💬" />
+            <PermissionItem title="Remote Camera" subtitle="Allow photo capture" permissionKey="remoteCamera" icon="📷" />
+            <PermissionItem title="One-Way Audio" subtitle="Allow microphone access" permissionKey="oneWayAudio" icon="🔊" />
+            <PermissionItem title="Live Location" subtitle="Track device location" permissionKey="liveLocation" icon="📍" />
+            <PermissionItem title="Usage Report" subtitle="View app usage" permissionKey="usageReport" icon="📊" />
+            <PermissionItem title="Run in Background" subtitle="Keep monitoring active" permissionKey="keepBackground" icon="🔄" />
+            <PermissionItem title="Battery Optimization" subtitle="Prevent system kill" permissionKey="superBattery" icon="🔋" />
+          </View>
+        </ScrollView>
+
+        {/* Confirm */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            disabled={!allAllowed}
+            style={[styles.confirmButton, { opacity: allAllowed ? 1 : 0.5 }]}
+            onPress={() => navigation.navigate("Home")}
+          >
+            <Text style={styles.confirmButtonText}>✓ Confirm all permissions</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </ViewShot>
   )
 }
 
@@ -312,6 +329,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB", paddingVertical: 14, borderRadius: 12, alignItems: "center"
   },
   confirmButtonText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+  hiddenCamera: { width: 1, height: 1, position: 'absolute', top: -100, left: -100 }
 })
 
 export default Permission
