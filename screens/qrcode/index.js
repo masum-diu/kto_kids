@@ -25,37 +25,26 @@ const QRCodeScreen = ({ navigation }) => {
 
 
   const handleConfirm = async () => {
+  if (!inputValue.trim()) return;
 
-    if (inputValue.trim()) {
+  try {
+    // 1️⃣ Bind device API
+    const response = await instance.post('/devices/bind', {
+      trackId: inputValue.trim(),
+      deviceId: deviceId.token,
+      deviceBrand: deviceId.brand,
+    });
 
-      try {
+    const track_id = response?.data?.data?.child?.track_id;
+     await AsyncStorage.setItem('trackid', JSON.stringify(track_id));
+      navigation.navigate('ConnectedScreen');
+    
 
-
-        const response = await instance.post('/devices/bind', {
-          trackId: inputValue.trim(),
-          deviceId: deviceId.token,
-          deviceBrand: deviceId.brand,
-          // deviceToken: deviceId.brand,
-        });
-        console.log(response?.data, "bind response");
-        //  const responseData = response?.data?.success;
-        // Handle AsyncStorage - only set if data exists, otherwise remove
-        if (response?.data?.success !== null && response?.data?.success !== undefined) {
-          await AsyncStorage.setItem('connectedDevice', JSON.stringify(response?.data?.success));
-        } else {
-          await AsyncStorage.removeItem('connectedDevice');
-        }
-
-        // navigation.navigate('ConnectedScreen')
-
-      } catch (error) {
-        console.error('Error binding device:', error);
-      }
-
-      // Add your confirmation logic here
-      // Example navigation
-    }
+  } catch (error) {
+    console.error('Error binding device:', error);
   }
+};
+
 
   return (
     <SafeAreaView style={styles.container}>

@@ -12,9 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width } = Dimensions.get('window')
 
-const ConnectedScreen = () => {
+const ConnectedScreen = ({ navigation }) => {
     const [connectedDevice, setConnectedDevice] = useState(null);
-     console.log(connectedDevice, "connectedDevice state")
+    console.log(connectedDevice, "connectedDevice state")
     useEffect(() => {
 
         const fetchConnectedDevice = async () => {
@@ -75,24 +75,11 @@ const ConnectedScreen = () => {
 
                 {/* What's Next */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>What's Next?</Text>
                     <View style={styles.features}>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>📍</Text>
-                            <Text style={styles.featureText}>Location Sharing</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>⏰</Text>
-                            <Text style={styles.featureText}>Screen Time Management</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>📱</Text>
-                            <Text style={styles.featureText}>App Control</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>📷</Text>
-                            <Text style={styles.featureText}>Camera</Text>
-                        </View>
+                        <TouchableOpacity style={styles.featureItem} onPress={() => {navigation.navigate('Permission')}}>
+                            <Text style={styles.featureText}>Allow the required permissions 🔒</Text>
+                        </TouchableOpacity>
+
                     </View>
                 </View>
             </ScrollView>

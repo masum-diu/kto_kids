@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import {
   View,
@@ -12,6 +13,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const WhoseDevices = () => {
   const { width, height } = Dimensions.get("window");
   const navigation = useNavigation();
+  const handlePressParents = () => {
+    const tackid = AsyncStorage.getItem('trackid');
+    // console.log(tackid, "trackid");
+    if (tackid) {
+      navigation.navigate("Permission");
+    } else {
+      navigation.navigate("QRCodeScreen");
+    }
+  }
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -39,7 +50,7 @@ const WhoseDevices = () => {
       {/* </View> */}
 
       <View style={styles.buttonWrapper}>
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate("Permission")}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => handlePressParents()}>
           <Text style={styles.secondaryButtonText}>Kids’ devices</Text>
         </TouchableOpacity>
       </View>

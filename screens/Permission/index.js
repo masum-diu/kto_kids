@@ -18,10 +18,14 @@ import { check, PERMISSIONS, RESULTS } from 'react-native-permissions'
 import messaging from '@react-native-firebase/messaging'
 import { Camera, useCameraDevice } from 'react-native-vision-camera'
 import ViewShot from 'react-native-view-shot'
+import instance from '../../api/api_instance'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const { ScreenLock } = NativeModules
 
 const Permission = ({ navigation }) => {
+const tackid = AsyncStorage.getItem('trackid');
+console.log(tackid)
 
   const cameraRef = useRef(null)
   const device = useCameraDevice('front')
@@ -70,25 +74,51 @@ const Permission = ({ navigation }) => {
     }
   }
 
-  const takeScreenshot = (data) => {
-    console.log(data, "screenshot command data")
-    let message = "Screenshot taken by parent"
-    try {
-      if (data.options) {
-        const parsed = JSON.parse(data.options)
-        if (parsed?.message) message = parsed.message
-      }
-    } catch (e) { }
-    Alert.alert("Notice", message)
+  const takeScreenshot = async (data) => {
+  let message = "Screenshot taken by parent"
 
-    viewShotRef.current.capture().then(uri => {
-      console.log("Screenshot captured:", uri)
-      // Here you can upload the image URI to your server
-      // e.g., uploadFile(uri)
-    }).catch(error => {
-      console.error("Oops, screenshot failed", error)
+  try {
+    if (data?.options) {
+      const parsed = JSON.parse(data.options)
+      if (parsed?.message) message = parsed.message
+    }
+  } catch (e) {}
+
+  Alert.alert("Notice", message)
+
+  try {
+    const uri = await viewShotRef.current.capture()
+
+    console.log("📸 Screenshot URI:", uri)
+
+    const formData = new FormData()
+    formData.append("trackId", "HPF2WCa4")
+    formData.append("image", {
+      uri: uri,
+      name: "screenshot.jpg",
+      type: "image/jpeg",
     })
+
+    const response = await instance.post(
+      "/screenshots/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    )
+
+    console.log("✅ Upload success:", response.data)
+
+  } catch (error) {
+    console.error(
+      "❌ Screenshot upload failed",
+      error.response?.data || error.message
+    )
   }
+}
+
 
   const takePhoto = async (data) => {
     if (cameraRef.current) {
