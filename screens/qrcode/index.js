@@ -9,7 +9,7 @@ import messaging from '@react-native-firebase/messaging';
 const QRCodeScreen = ({ navigation }) => {
   const [inputValue, setInputValue] = useState('')
   const [deviceId, setDeviceId] = useState({ id: null, brand: null, token: null })
-  console.log(deviceId, "device")
+   console.log(deviceId, "device")
 
 
   useEffect(() => {
@@ -31,12 +31,14 @@ const QRCodeScreen = ({ navigation }) => {
     // 1️⃣ Bind device API
     const response = await instance.post('/devices/bind', {
       trackId: inputValue.trim(),
-      deviceId: deviceId.token,
+      deviceId: deviceId.id,
+      deviceToken: deviceId.token,
       deviceBrand: deviceId.brand,
     });
 
     const track_id = response?.data?.data?.child?.track_id;
-     await AsyncStorage.setItem('trackid', JSON.stringify(track_id));
+    console.log(track_id)
+     await AsyncStorage.setItem('trackid', track_id);
       navigation.navigate('ConnectedScreen');
     
 

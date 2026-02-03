@@ -14,14 +14,14 @@ const { width } = Dimensions.get('window')
 
 const ConnectedScreen = ({ navigation }) => {
     const [connectedDevice, setConnectedDevice] = useState(null);
-    console.log(connectedDevice, "connectedDevice state")
+    // console.log(connectedDevice, "connectedDevice state")
     useEffect(() => {
 
         const fetchConnectedDevice = async () => {
             try {
-                const deviceData = await AsyncStorage.getItem('connectedDevice');
+                const deviceData = await AsyncStorage.getItem('trackid');
                 if (deviceData) {
-                    setConnectedDevice(JSON.parse(deviceData));
+                    setConnectedDevice(deviceData);
                 }
             } catch (error) {
                 console.error('Error fetching connected device:', error);

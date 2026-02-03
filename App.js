@@ -6,13 +6,11 @@ import WhoseDevices from "./screens/WhoseDevices";
 import QRCodeScreen from "./screens/qrcode";
 import Permission from "./screens/Permission";
 import ConnectedScreen from "./screens/connected";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 const Stack = createNativeStackNavigator();
 export default function App() {
-  const get = AsyncStorage.getItem('connectedDevice')
-  console.log(get._j
-    , "app js")
+  
   return (
     <SafeAreaProvider>
       <NavigationContainer>

@@ -13,15 +13,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const WhoseDevices = () => {
   const { width, height } = Dimensions.get("window");
   const navigation = useNavigation();
-  const handlePressParents = () => {
-    const tackid = AsyncStorage.getItem('trackid');
-    // console.log(tackid, "trackid");
-    if (tackid) {
-      navigation.navigate("Permission");
-    } else {
-      navigation.navigate("QRCodeScreen");
+  const handlePressParents = async () => {
+    try {
+      const trackId = await AsyncStorage.getItem('trackid');
+      if (trackId) {
+        navigation.navigate("ConnectedScreen");
+      } else {
+        navigation.navigate("QRCodeScreen");
+      }
+    } catch (error) {
+      console.error("Failed to get trackid from AsyncStorage", error);
+      navigation.navigate("QRCodeScreen"); // Fallback on error
     }
-  }
+  };
 
 
   return (
@@ -56,9 +60,7 @@ const WhoseDevices = () => {
       </View>
     </SafeAreaView>
   );
-};
-
-export default WhoseDevices;
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -109,3 +111,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+export default WhoseDevices;
