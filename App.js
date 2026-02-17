@@ -7,10 +7,8 @@ import QRCodeScreen from "./screens/qrcode";
 import Permission from "./screens/Permission";
 import ConnectedScreen from "./screens/connected";
 
-
 const Stack = createNativeStackNavigator();
 export default function App() {
-  
   return (
     <SafeAreaProvider>
       <NavigationContainer>

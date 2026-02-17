@@ -2,6 +2,9 @@
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -26,6 +29,22 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!-- Manual Linking Step 1: Meta-data for Foreground Service Notification -->
+        <meta-data
+            android:name="com.supersami.foregroundservice.notification_channel_name"
+            android:value="Sticky Title"
+        />
+        <meta-data
+            android:name="com.supersami.foregroundservice.notification_channel_description"
+            android:value="Sticky Description."
+        />
+        <meta-data
+            android:name="com.supersami.foregroundservice.notification_color"
+            android:resource="@color/blue"
+        />
       </activity>
+      <!-- Foreground Service declarations with foregroundServiceType for Android 14+ -->
+      <service android:name="com.supersami.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync" />
+      <service android:name="com.supersami.foregroundservice.ForegroundServiceTask" android:foregroundServiceType="dataSync" />
     </application>
 </manifest>
