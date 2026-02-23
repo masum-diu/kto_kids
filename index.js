@@ -22,10 +22,10 @@ setBackgroundMessageHandler(messaging, async (remoteMessage) => {
   handleFCMCommand(remoteMessage, { isBackground: true });
 });
 
-// Native foreground service emits callback on stop; no-op to avoid console noise
+// alert: false - prevents popup when native emits "error" on service stop (e.g. Strict Mode cleanup)
 ReactNativeForegroundService.register({
   config: {
-    alert: true,
+    alert: false,
     onServiceErrorCallBack: () => {},
   },
 });
