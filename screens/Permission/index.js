@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Switch,
@@ -14,12 +13,13 @@ import {
   NativeModules,
   Alert,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { check, PERMISSIONS, RESULTS } from 'react-native-permissions'
-import messaging from '@react-native-firebase/messaging'
+import { getMessaging, onMessage } from '@react-native-firebase/messaging'
 import { Camera, useCameraDevice } from 'react-native-vision-camera'
 import ViewShot from 'react-native-view-shot'
-import instance from '../../api/api_instance'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { handleFCMCommand } from '../../services/FCMCommandHandler'
 
 const { ScreenLock } = NativeModules
 
@@ -40,6 +40,7 @@ const Permission = ({ navigation }) => {
     keepBackground: false,
     superBattery: false,
   })
+  const [cameraError, setCameraError] = useState(false)
 
   /* ================= HELPERS ================= */
 
@@ -47,76 +48,18 @@ const Permission = ({ navigation }) => {
     setPermissions(prev => ({ ...prev, [key]: value }))
   }
 
-  /* ================= FCM COMMAND HANDLER ================= */
+  /* ================= FCM COMMAND HANDLER (foreground) ================= */
 
-  const handleCommand = (data) => {
+  const handleCommand = (message) => {
+    const data = message?.data
     if (!data?.command) return
-
-    console.log("HANDLE COMMAND:", data)
-
-    switch (data.command) {
-      case "LOCK":
-        handleLockCommand(data)
-        break
-
-      case "TAKE_PHOTO":
-        takePhoto(data)
-        break
-      case "SCREENSHOT":
-        takeScreenshot(data)
-        // next step later
-        break
-
-      default:
-        console.log("Unknown command:", data.command)
+    console.log('HANDLE COMMAND:', data)
+    if (data.command === 'TAKE_PHOTO') {
+      takePhoto(data)
+      return
     }
+    handleFCMCommand(message, { isBackground: false })
   }
-
-  const takeScreenshot = async (data) => {
-    let message = "Screenshot taken by parent"
-
-    try {
-      if (data?.options) {
-        const parsed = JSON.parse(data.options)
-        if (parsed?.message) message = parsed.message
-      }
-    } catch (e) { }
-
-    Alert.alert("Notice", message)
-
-    try {
-      const uri = await viewShotRef.current.capture()
- const id = await AsyncStorage.getItem("trackid")
-      // console.log("📸 Screenshot URI:", uri)
-
-      const formData = new FormData()
-      formData.append("trackId", String(id));
-      formData.append("image", {
-        uri: uri,
-        name: "screenshot.jpg",
-        type: "image/jpeg",
-      })
-
-      const response = await instance.post(
-        "/screenshots/upload",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      )
-
-      console.log("✅ Upload success:", response.data)
-
-    } catch (error) {
-      console.error(
-        "❌ Screenshot upload failed",
-        error.response?.data || error.message
-      )
-    }
-  }
-
 
   const takePhoto = async (data) => {
     if (cameraRef.current) {
@@ -131,25 +74,6 @@ const Permission = ({ navigation }) => {
       }
     } else {
       Alert.alert("Error", "Camera is not ready.")
-    }
-  }
-
-  const handleLockCommand = (data) => {
-    let message = "Device locked by parent"
-
-    try {
-      if (data.options) {
-        const parsed = JSON.parse(data.options)
-        if (parsed?.message) message = parsed.message
-      }
-    } catch (e) { }
-
-    Alert.alert("Notice", message)
-
-    if (ScreenLock?.lock) {
-      ScreenLock.lock()
-    } else {
-      console.log("❌ ScreenLock native module not found")
     }
   }
 
@@ -219,9 +143,10 @@ const Permission = ({ navigation }) => {
     recheckPermissions()
 
     // FCM foreground listener
-    const unsubscribe = messaging().onMessage(async message => {
-      console.log("📩 FCM RECEIVED:", message.data)
-      handleCommand(message.data)
+    const messaging = getMessaging()
+    const unsubscribe = onMessage(messaging, (message) => {
+      console.log('📩 FCM RECEIVED:', message.data)
+      handleCommand(message)
     })
 
     // AppState listener (user back from settings)
@@ -262,14 +187,15 @@ const Permission = ({ navigation }) => {
   return (
     <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }} style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
-        {/* Hidden Camera for remote capture */}
-        {permissions.remoteCamera && device && (
+        {/* Hidden Camera for remote capture (omit when restricted by OS/device policy) */}
+        {permissions.remoteCamera && device && !cameraError && (
           <Camera
             ref={cameraRef}
             style={styles.hiddenCamera}
             device={device}
             isActive={true}
             captureAudio={false}
+            onError={() => setCameraError(true)}
           />
         )}
 
