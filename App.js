@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import ViewShot from "react-native-view-shot";
+import notifee, { EventType } from "@notifee/react-native";
 import { getMessaging, onMessage } from "@react-native-firebase/messaging";
 import Onboarding from "./screens/onboarding";
 import WhoseDevices from "./screens/WhoseDevices";
@@ -21,6 +22,9 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   const viewShotRef = useRef(null);
+  const navigationRef = useRef(null);
+  const navReadyRef = useRef(false);
+  const openedFromNotificationRef = useRef(false);
 
   useEffect(() => {
     const captureFn = () => viewShotRef.current?.capture?.();
