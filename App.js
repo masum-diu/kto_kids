@@ -37,12 +37,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    restorePendingFromStorage();
-  }, []);
-
-  useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") restorePendingFromStorage();
+      if (state === "active") {
+        restorePendingFromStorage().then((pending) => {
+          if (pending && navReadyRef.current && navigationRef.current) {
+            navigationRef.current.navigate("Permission");
+          }
+        });
+      }
     });
     return () => sub.remove();
   }, []);
@@ -81,7 +83,17 @@ export default function App() {
   return (
     <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }} style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer
+          ref={navigationRef}
+          onReady={() => {
+            navReadyRef.current = true;
+            restorePendingFromStorage().then((pending) => {
+              if (pending && navigationRef.current) {
+                navigationRef.current.navigate("Permission");
+              }
+            });
+          }}
+        >
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Onboarding" component={Onboarding} />
             <Stack.Screen name="WhoseDevices" component={WhoseDevices} />
