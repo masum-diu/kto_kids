@@ -12,6 +12,7 @@ import Permission from "./screens/Permission";
 import ConnectedScreen from "./screens/connected";
 import { register as registerCapture, unregister as unregisterCapture, getViewShotCapture } from "./services/ScreenshotCaptureRegistry";
 import { isPending, clearPending } from "./services/PendingScreenshotManager";
+import { restorePendingFromStorage } from "./services/PendingCameraCaptureManager";
 import { uploadScreenshot } from "./services/ScreenshotService";
 import { handleFCMCommand } from "./services/FCMCommandHandler";
 import { initForegroundServiceManager } from "./services/ForegroundServiceManager";
@@ -29,6 +30,17 @@ export default function App() {
       unregisterCapture();
       cleanup?.();
     };
+  }, []);
+
+  useEffect(() => {
+    restorePendingFromStorage();
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") restorePendingFromStorage();
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {

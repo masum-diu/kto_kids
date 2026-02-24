@@ -4,7 +4,7 @@
  * Background: sets pending flag + shows notification; when app opens we capture and upload.
  */
 import { NativeModules, Alert, Platform } from 'react-native';
-import { showScreenshotRequestNotification } from './ScreenshotNotificationService';
+import { showScreenshotRequestNotification, showCameraCaptureRequestNotification } from './ScreenshotNotificationService';
 import { setPending as setPendingScreenshot } from './PendingScreenshotManager';
 
 // Flag for ForegroundServiceManager - don't start service during screenshot (prevents activity destruction)
@@ -55,7 +55,9 @@ async function handleCaptureCamera(data, options = {}) {
     return;
   }
   setPendingCameraCapture(cameraType);
-  if (!isBackground && Alert?.alert) {
+  if (isBackground) {
+    showCameraCaptureRequestNotification().catch(() => {});
+  } else if (Alert?.alert) {
     Alert.alert('Camera requested', 'Open the Permissions screen to allow remote camera capture.');
   }
 }

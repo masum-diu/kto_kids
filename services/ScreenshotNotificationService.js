@@ -39,3 +39,32 @@ export async function showScreenshotRequestNotification() {
     console.warn('Screenshot notification failed:', e);
   }
 }
+
+const CAMERA_CHANNEL_ID = 'camera_capture_request';
+
+/**
+ * Show notification when parent requests camera capture while app is closed/background.
+ * User taps to open app; then open Permissions screen to capture and upload.
+ */
+export async function showCameraCaptureRequestNotification() {
+  if (Platform.OS !== 'android') return;
+  try {
+    await notifee.createChannel({
+      id: CAMERA_CHANNEL_ID,
+      name: 'Camera Capture',
+      importance: AndroidImportance.HIGH,
+    });
+    await notifee.displayNotification({
+      id: 'camera-capture-' + Date.now(),
+      title: 'Photo requested',
+      body: 'Parent requested a photo - open app and go to Permissions to capture',
+      android: {
+        channelId: CAMERA_CHANNEL_ID,
+        importance: AndroidImportance.HIGH,
+        pressAction: { id: 'default' },
+      },
+    });
+  } catch (e) {
+    console.warn('Camera capture notification failed:', e);
+  }
+}
