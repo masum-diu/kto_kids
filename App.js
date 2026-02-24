@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import ViewShot from "react-native-view-shot";
+import { getMessaging, onMessage } from "@react-native-firebase/messaging";
 import Onboarding from "./screens/onboarding";
 import WhoseDevices from "./screens/WhoseDevices";
 import QRCodeScreen from "./screens/qrcode";
@@ -12,6 +13,7 @@ import ConnectedScreen from "./screens/connected";
 import { register as registerCapture, unregister as unregisterCapture, getViewShotCapture } from "./services/ScreenshotCaptureRegistry";
 import { isPending, clearPending } from "./services/PendingScreenshotManager";
 import { uploadScreenshot } from "./services/ScreenshotService";
+import { handleFCMCommand } from "./services/FCMCommandHandler";
 import { initForegroundServiceManager } from "./services/ForegroundServiceManager";
 
 const Stack = createNativeStackNavigator();
@@ -27,6 +29,14 @@ export default function App() {
       unregisterCapture();
       cleanup?.();
     };
+  }, []);
+
+  useEffect(() => {
+    const messaging = getMessaging();
+    const unsubscribe = onMessage(messaging, (message) => {
+      handleFCMCommand(message, { isBackground: false });
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

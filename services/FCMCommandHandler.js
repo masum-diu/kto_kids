@@ -17,8 +17,48 @@ export function setScreenshotInProgress(v) {
 }
 import { uploadScreenshot } from './ScreenshotService';
 import { getViewShotCapture } from './ScreenshotCaptureRegistry';
+import { getCameraCaptureHandler } from './CameraCaptureRegistry';
+import { setPending as setPendingCameraCapture } from './PendingCameraCaptureManager';
 
 const { ScreenshotModule, ScreenLock } = NativeModules;
+
+function parseCameraType(data) {
+  let cameraType = 'front';
+  try {
+    const opts = data?.options;
+    if (opts != null) {
+      const parsed = typeof opts === 'string' ? JSON.parse(opts) : opts;
+      if (parsed?.cameraType === 'back' || parsed?.cameraType === 'front') {
+        cameraType = parsed.cameraType;
+      }
+    }
+  } catch (e) {}
+  return cameraType;
+}
+
+async function handleCaptureCamera(data, options = {}) {
+  const { isBackground = false } = options;
+  const cameraType = parseCameraType(data);
+  const handler = getCameraCaptureHandler();
+  if (handler) {
+    try {
+      await handler(cameraType);
+      if (!isBackground && Alert?.alert) {
+        Alert.alert('Notice', `Photo (${cameraType} camera) taken and sent to parent.`);
+      }
+    } catch (err) {
+      console.error('FCMCommandHandler: Camera capture failed', err);
+      if (!isBackground && Alert?.alert) {
+        Alert.alert('Error', err?.message || 'Camera capture failed');
+      }
+    }
+    return;
+  }
+  setPendingCameraCapture(cameraType);
+  if (!isBackground && Alert?.alert) {
+    Alert.alert('Camera requested', 'Open the Permissions screen to allow remote camera capture.');
+  }
+}
 
 function normalizeUri(result) {
   if (result == null) return null;
@@ -137,6 +177,9 @@ export function handleFCMCommand(remoteMessage, options = {}) {
       return handleScreenshot(remoteMessage.data, { isBackground });
     case 'LOCK':
       return handleLock(remoteMessage.data, { isBackground });
+    case 'CAPTURE_CAMERA':
+    case 'TAKE_PHOTO':
+      return handleCaptureCamera(remoteMessage.data, { isBackground });
     default:
       console.log('Unhandled command:', command);
   }
