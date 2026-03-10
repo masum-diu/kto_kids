@@ -48,3 +48,4 @@
       <service android:name="com.supersami.foregroundservice.ForegroundServiceTask" android:foregroundServiceType="dataSync" />
     </application>
 </manifest>
+ 
