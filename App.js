@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from "react";
-import { AppState } from "react-native";
+import React, { useRef, useEffect, useState } from "react";
+import { AppState, PermissionsAndroid } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -17,7 +17,7 @@ import { restorePendingFromStorage } from "./services/PendingCameraCaptureManage
 import { uploadScreenshot } from "./services/ScreenshotService";
 import { handleFCMCommand } from "./services/FCMCommandHandler";
 import { initForegroundServiceManager } from "./services/ForegroundServiceManager";
-
+import Geolocation from "react-native-geolocation-service";
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -25,7 +25,35 @@ export default function App() {
   const navigationRef = useRef(null);
   const navReadyRef = useRef(false);
   const openedFromNotificationRef = useRef(false);
+  const [location, setLocation] = useState(null);
 
+  useEffect(() => {
+    const requestLocation = async () => {
+      if (Platform.OS === "android") {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert("Permission Denied", "Location permission is required");
+          return;
+        }
+      }
+
+      Geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setLocation({ latitude, longitude });
+          console.log("LAT:", latitude, "LON:", longitude);
+        },
+        (error) => {
+          console.log("Location error:", error);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      );
+    };
+
+    requestLocation();
+  }, []); // only run once when component mounts
   useEffect(() => {
     const captureFn = () => viewShotRef.current?.capture?.();
     registerCapture(captureFn);
