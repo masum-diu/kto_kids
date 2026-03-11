@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from "react";
-import { AppState, PermissionsAndroid } from "react-native";
+import React, { useRef, useEffect } from "react";
+import { AppState, PermissionsAndroid, Platform, Alert } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -17,7 +17,7 @@ import { restorePendingFromStorage } from "./services/PendingCameraCaptureManage
 import { uploadScreenshot } from "./services/ScreenshotService";
 import { handleFCMCommand } from "./services/FCMCommandHandler";
 import { initForegroundServiceManager } from "./services/ForegroundServiceManager";
-import Geolocation from "react-native-geolocation-service";
+import { startPeriodicLocationUpdates, stopPeriodicLocationUpdates } from "./services/LocationService";
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -25,35 +25,40 @@ export default function App() {
   const navigationRef = useRef(null);
   const navReadyRef = useRef(false);
   const openedFromNotificationRef = useRef(false);
-  const [location, setLocation] = useState(null);
 
+  // Location permission + real-time location sending to backend (for parent tracking)
   useEffect(() => {
-    const requestLocation = async () => {
+    const requestLocationPermission = async () => {
       if (Platform.OS === "android") {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
         );
         if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert("Permission Denied", "Location permission is required");
+          Alert.alert("Permission Denied", "Location permission is required for parents to see your location.");
           return;
         }
       }
-
-      Geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setLocation({ latitude, longitude });
-          console.log("LAT:", latitude, "LON:", longitude);
-        },
-        (error) => {
-          console.log("Location error:", error);
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-      );
+      // Start sending location when app is in foreground
+      if (AppState.currentState === "active") {
+        startPeriodicLocationUpdates();
+      }
     };
 
-    requestLocation();
-  }, []); // only run once when component mounts
+    requestLocationPermission();
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        startPeriodicLocationUpdates();
+      } else {
+        stopPeriodicLocationUpdates();
+      }
+    });
+
+    return () => {
+      sub.remove();
+      stopPeriodicLocationUpdates();
+    };
+  }, []);
   useEffect(() => {
     const captureFn = () => viewShotRef.current?.capture?.();
     registerCapture(captureFn);

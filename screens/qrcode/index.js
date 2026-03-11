@@ -36,9 +36,11 @@ const QRCodeScreen = ({ navigation }) => {
       deviceBrand: deviceId.brand,
     });
 
-    const track_id = response?.data?.data?.child?.track_id;
+    const track_id = response?.data?.data?.child?.track_id ?? response?.data?.data?.child?.trackId ?? inputValue.trim();
+    if (track_id) {
+      await AsyncStorage.setItem('trackid', String(track_id));
+    }
     console.log(track_id)
-     await AsyncStorage.setItem('trackid', track_id);
       navigation.navigate('ConnectedScreen');
     
 
