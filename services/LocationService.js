@@ -24,12 +24,14 @@ let lastSendTime = 0;
 
 /**
  * Build payload from position and send to backend. No-op if no trackId or throttle says skip.
+ * @param options.force - If true, skip throttle (e.g. when parent requested location via notification).
  */
-async function sendPositionToBackend(position, trackId) {
+async function sendPositionToBackend(position, trackId, options = {}) {
   if (!trackId || !trackId.trim()) return;
 
+  const { force = false } = options;
   const now = Date.now();
-  if (now - lastSendTime < MIN_SEND_INTERVAL_MS) return;
+  if (!force && now - lastSendTime < MIN_SEND_INTERVAL_MS) return;
   lastSendTime = now;
 
   const { latitude, longitude, altitude, speed, accuracy } = position.coords || position;
@@ -111,8 +113,10 @@ export function stopPeriodicLocationUpdates() {
 
 /**
  * Send one location update immediately (e.g. on demand). No-op if no trackId or Geolocation unavailable.
+ * @param options.force - If true, skip throttle so location is always sent (e.g. when triggered by FCM notification).
  */
-export async function sendCurrentLocation() {
+export async function sendCurrentLocation(options = {}) {
+  const { force = false } = options;
   const trackId = await AsyncStorage.getItem('trackid');
   if (!trackId || !trackId.trim()) return;
 
@@ -125,7 +129,7 @@ export async function sendCurrentLocation() {
       }
       geo.getCurrentPosition(
         async (position) => {
-          await sendPositionToBackend(position, trackId);
+          await sendPositionToBackend(position, trackId, { force });
           resolve();
         },
         (err) => {

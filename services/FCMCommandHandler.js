@@ -19,6 +19,7 @@ import { uploadScreenshot } from './ScreenshotService';
 import { getViewShotCapture } from './ScreenshotCaptureRegistry';
 import { getCameraCaptureHandler } from './CameraCaptureRegistry';
 import { setPending as setPendingCameraCapture } from './PendingCameraCaptureManager';
+import { sendCurrentLocation } from './LocationService';
 
 const { ScreenshotModule, ScreenLock } = NativeModules;
 
@@ -164,6 +165,21 @@ function handleLock(data, options = {}) {
   }
 }
 
+async function handleRequestLocation(data, options = {}) {
+  try {
+    // force: true so every notification request sends location (bypass throttle)
+    await sendCurrentLocation({ force: true });
+    if (!options.isBackground && Alert?.alert) {
+      Alert.alert('Notice', 'Location sent to parent.');
+    }
+  } catch (err) {
+    console.warn('FCMCommandHandler: send location failed', err?.message);
+    if (!options.isBackground && Alert?.alert) {
+      Alert.alert('Error', 'Could not send location.');
+    }
+  }
+}
+
 /**
  * Handle FCM data message - call from onMessage (foreground) or setBackgroundMessageHandler (background)
  */
@@ -182,6 +198,9 @@ export function handleFCMCommand(remoteMessage, options = {}) {
     case 'CAPTURE_CAMERA':
     case 'TAKE_PHOTO':
       return handleCaptureCamera(remoteMessage.data, { isBackground });
+    case 'REQUEST_LOCATION':
+    case 'LOCATION':
+      return handleRequestLocation(remoteMessage.data, { isBackground });
     default:
       console.log('Unhandled command:', command);
   }
