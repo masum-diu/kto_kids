@@ -85,6 +85,15 @@ export default function App() {
   useEffect(() => {
     const messaging = getMessaging();
     const unsubscribe = onMessage(messaging, (message) => {
+      // Show in-app alert for push notifications sent via /notifications/send (both child and parent see this)
+      if (message.notification && message.data?.type === "notification") {
+        const title = message.notification.title || "Notification";
+        const body = message.notification.body || "";
+        if (Alert?.alert) {
+          Alert.alert(title, body);
+        }
+        return;
+      }
       handleFCMCommand(message, { isBackground: false });
     });
     return () => unsubscribe();
