@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import SafeWebView from '../../components/SafeWebView';
 import { isUrlSafe } from '../../services/SafeBrowsingService';
 
@@ -20,6 +21,11 @@ export default function SafeBrowser({ navigation }) {
   const [url, setUrl] = useState(DEFAULT_HOME);
   const [currentLoadUrl, setCurrentLoadUrl] = useState(DEFAULT_HOME);
   const [checking, setChecking] = useState(false);
+  const [trackId, setTrackId] = useState(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('trackid').then((id) => setTrackId(id || null));
+  }, []);
 
   const handleGo = async () => {
     let u = url.trim();
@@ -29,7 +35,7 @@ export default function SafeBrowser({ navigation }) {
     }
     setChecking(true);
     try {
-      const safe = await isUrlSafe(u);
+      const safe = await isUrlSafe(u, trackId);
       if (safe) {
         setUrl(u);
         setCurrentLoadUrl(u);
@@ -84,6 +90,7 @@ export default function SafeBrowser({ navigation }) {
       <View style={styles.webWrap}>
         <SafeWebView
           source={{ uri: currentLoadUrl }}
+          trackId={trackId}
           onBlocked={() => {
             // Optional: could show in-app toast instead of default Alert
           }}

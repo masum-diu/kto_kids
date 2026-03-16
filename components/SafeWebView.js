@@ -8,8 +8,9 @@ const BLOCKED_MESSAGE = "This site isn't safe to open. Your parents have asked u
 /**
  * WebView that checks each URL with Safe Browsing before allowing load.
  * Use source={{ uri: initialUrl }} for the first page.
+ * When trackId is set, parent block list (policy.blockedWebsites) is also applied.
  */
-export default function SafeWebView({ source, onBlocked, ...rest }) {
+export default function SafeWebView({ source, onBlocked, trackId, ...rest }) {
   const initialUri = source?.uri || '';
   const [currentUri, setCurrentUri] = useState(initialUri);
   const [checking, setChecking] = useState(false);
@@ -31,7 +32,7 @@ export default function SafeWebView({ source, onBlocked, ...rest }) {
 
       // New navigation: block and check
       setChecking(true);
-      isUrlSafe(url)
+      isUrlSafe(url, trackId)
         .then((safe) => {
           if (safe) {
             setCurrentUri(url);
@@ -49,7 +50,7 @@ export default function SafeWebView({ source, onBlocked, ...rest }) {
 
       return false;
     },
-    [currentUri, initialUri, onBlocked]
+    [currentUri, initialUri, onBlocked, trackId]
   );
 
   const uri = currentUri || initialUri;
