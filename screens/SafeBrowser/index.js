@@ -35,7 +35,9 @@ export default function SafeBrowser({ navigation }) {
     }
     setChecking(true);
     try {
-      const safe = await isUrlSafe(u, trackId);
+      // Use trackId from state or AsyncStorage so parent block list is always applied to the URL bar
+      const effectiveTrackId = trackId ?? ((await AsyncStorage.getItem('trackid')) || null);
+      const safe = await isUrlSafe(u, effectiveTrackId);
       if (safe) {
         setUrl(u);
         setCurrentLoadUrl(u);

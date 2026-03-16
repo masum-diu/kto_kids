@@ -6,9 +6,30 @@ import { isUrlSafe } from '../services/SafeBrowsingService';
 const BLOCKED_MESSAGE = "This site isn't safe to open. Your parents have asked us to block it.";
 
 /**
+ * If the URL is a search-engine redirect (e.g. Google search result link),
+ * return the real destination URL. Otherwise return null.
+ * Google: https://www.google.com/url?q=https://example.com&sa=...
+ */
+function getRedirectTargetUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const u = new URL(url.trim());
+    const host = u.hostname.replace(/^www\./i, '');
+    if (host === 'google.com' || host === 'google.co.uk' || host === 'google.de' || host.endsWith('.google.com')) {
+      const q = u.searchParams.get('q');
+      if (q && (q.startsWith('http://') || q.startsWith('https://'))) return q;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * WebView that checks each URL with Safe Browsing before allowing load.
  * Use source={{ uri: initialUrl }} for the first page.
  * When trackId is set, parent block list (policy.blockedWebsites) is also applied.
+ * Google search result links (redirect URLs) are unwrapped and the real URL is checked against the block list.
  */
 export default function SafeWebView({ source, onBlocked, trackId, ...rest }) {
   const initialUri = source?.uri || '';
@@ -30,15 +51,19 @@ export default function SafeWebView({ source, onBlocked, trackId, ...rest }) {
       // Allow initial load
       if (url === initialUri && currentUri === initialUri) return true;
 
-      // New navigation: block and check
+      // Google (and similar) search result links are redirects: check the real destination URL against block list
+      const redirectTarget = getRedirectTargetUrl(url);
+      const urlToCheck = redirectTarget || url;
+
       setChecking(true);
-      isUrlSafe(url, trackId)
+      isUrlSafe(urlToCheck, trackId)
         .then((safe) => {
           if (safe) {
-            setCurrentUri(url);
+            // Navigate to the real URL so we skip the redirect and block list applies to the actual destination
+            setCurrentUri(redirectTarget || url);
           } else {
-            if (onBlocked) onBlocked(url);
-            else Alert.alert('Site blocked', BLOCKED_MESSAGE);
+            Alert.alert('Site blocked', BLOCKED_MESSAGE);
+            if (onBlocked) onBlocked(urlToCheck);
           }
         })
         .catch(() => {
