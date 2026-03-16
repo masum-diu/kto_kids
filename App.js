@@ -11,12 +11,14 @@ import WhoseDevices from "./screens/WhoseDevices";
 import QRCodeScreen from "./screens/qrcode";
 import Permission from "./screens/Permission";
 import ConnectedScreen from "./screens/connected";
+import SafeBrowser from "./screens/SafeBrowser";
 import { register as registerCapture, unregister as unregisterCapture, getViewShotCapture } from "./services/ScreenshotCaptureRegistry";
 import { isPending, clearPending } from "./services/PendingScreenshotManager";
 import { restorePendingFromStorage } from "./services/PendingCameraCaptureManager";
 import { uploadScreenshot } from "./services/ScreenshotService";
 import { handleFCMCommand } from "./services/FCMCommandHandler";
 import { initForegroundServiceManager } from "./services/ForegroundServiceManager";
+import { startDeviceTelemetrySync, stopDeviceTelemetrySync } from "./services/DeviceTelemetryService";
 import { startPeriodicLocationUpdates, stopPeriodicLocationUpdates } from "./services/LocationService";
 const Stack = createNativeStackNavigator();
 
@@ -57,6 +59,25 @@ export default function App() {
     return () => {
       sub.remove();
       stopPeriodicLocationUpdates();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (AppState.currentState === "active") {
+      startDeviceTelemetrySync();
+    }
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        startDeviceTelemetrySync();
+      } else {
+        stopDeviceTelemetrySync();
+      }
+    });
+
+    return () => {
+      sub.remove();
+      stopDeviceTelemetrySync();
     };
   }, []);
   useEffect(() => {
@@ -136,12 +157,13 @@ export default function App() {
             });
           }}
         >
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Onboarding" component={Onboarding} />
             <Stack.Screen name="WhoseDevices" component={WhoseDevices} />
             <Stack.Screen name="QRCodeScreen" component={QRCodeScreen} />
             <Stack.Screen name="ConnectedScreen" component={ConnectedScreen} />
             <Stack.Screen name="Permission" component={Permission} />
+            <Stack.Screen name="SafeBrowser" component={SafeBrowser} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

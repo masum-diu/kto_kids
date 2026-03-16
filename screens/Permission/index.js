@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { register as registerCameraCapture, unregister as unregisterCameraCapture } from '../../services/CameraCaptureRegistry'
 import { getPending as getPendingCameraCapture, clearPending as clearPendingCameraCapture } from '../../services/PendingCameraCaptureManager'
 import { uploadCameraPhoto } from '../../services/CameraPhotoService'
+import { hasUsageAccessPermission, openUsageAccessSettings } from '../../services/UsageAccessService'
 
 const { ScreenLock } = NativeModules
 
@@ -158,7 +159,7 @@ const Permission = ({ navigation }) => {
 
       case "usageLimits":
       case "usageReport":
-        Linking.openSettings()
+        openUsageAccessSettings()
         break
 
       case "displayOverApps":
@@ -181,10 +182,13 @@ const Permission = ({ navigation }) => {
     const camera = await check(PERMISSIONS.ANDROID.CAMERA)
     const audio = await check(PERMISSIONS.ANDROID.RECORD_AUDIO)
     const location = await check(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION)
+    const usageAccess = await hasUsageAccessPermission()
 
     updatePermission("remoteCamera", camera === RESULTS.GRANTED)
     updatePermission("oneWayAudio", audio === RESULTS.GRANTED)
     updatePermission("liveLocation", location === RESULTS.GRANTED)
+    updatePermission("usageLimits", usageAccess)
+    updatePermission("usageReport", usageAccess)
   }
 
   /* ================= EFFECTS ================= */

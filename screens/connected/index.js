@@ -79,7 +79,9 @@ const ConnectedScreen = ({ navigation }) => {
                         <TouchableOpacity style={styles.featureItem} onPress={() => {navigation.navigate('Permission')}}>
                             <Text style={styles.featureText}>Allow the required permissions 🔒</Text>
                         </TouchableOpacity>
-
+                        <TouchableOpacity style={styles.featureItem} onPress={() => navigation.navigate('SafeBrowser')}>
+                            <Text style={styles.featureText}>Browse safely 🌐</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </ScrollView>
