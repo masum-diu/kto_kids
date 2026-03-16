@@ -19,7 +19,6 @@ import { uploadScreenshot } from "./services/ScreenshotService";
 import { handleFCMCommand } from "./services/FCMCommandHandler";
 import { initForegroundServiceManager } from "./services/ForegroundServiceManager";
 import { startDeviceTelemetrySync, stopDeviceTelemetrySync } from "./services/DeviceTelemetryService";
-import { startPeriodicLocationUpdates, stopPeriodicLocationUpdates } from "./services/LocationService";
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -28,7 +27,7 @@ export default function App() {
   const navReadyRef = useRef(false);
   const openedFromNotificationRef = useRef(false);
 
-  // Location permission + real-time location sending to backend (for parent tracking)
+  // Location permission only — location is sent only when parent sends REQUEST_LOCATION command
   useEffect(() => {
     const requestLocationPermission = async () => {
       if (Platform.OS === "android") {
@@ -36,30 +35,12 @@ export default function App() {
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
         );
         if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert("Permission Denied", "Location permission is required for parents to see your location.");
+          Alert.alert("Permission Denied", "Location permission is required when your parent requests your location.");
           return;
         }
       }
-      // Start sending location when app is in foreground
-      if (AppState.currentState === "active") {
-        startPeriodicLocationUpdates();
-      }
     };
-
     requestLocationPermission();
-
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        startPeriodicLocationUpdates();
-      } else {
-        stopPeriodicLocationUpdates();
-      }
-    });
-
-    return () => {
-      sub.remove();
-      stopPeriodicLocationUpdates();
-    };
   }, []);
 
   useEffect(() => {
