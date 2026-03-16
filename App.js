@@ -12,6 +12,7 @@ import QRCodeScreen from "./screens/qrcode";
 import Permission from "./screens/Permission";
 import ConnectedScreen from "./screens/connected";
 import SafeBrowser from "./screens/SafeBrowser";
+import AppUsage from "./screens/AppUsage";
 import { register as registerCapture, unregister as unregisterCapture, getViewShotCapture } from "./services/ScreenshotCaptureRegistry";
 import { isPending, clearPending } from "./services/PendingScreenshotManager";
 import { restorePendingFromStorage } from "./services/PendingCameraCaptureManager";
@@ -145,6 +146,7 @@ export default function App() {
             <Stack.Screen name="ConnectedScreen" component={ConnectedScreen} />
             <Stack.Screen name="Permission" component={Permission} />
             <Stack.Screen name="SafeBrowser" component={SafeBrowser} />
+            <Stack.Screen name="AppUsage" component={AppUsage} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

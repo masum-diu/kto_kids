@@ -1,6 +1,7 @@
 package com.kto_kids
 
 import android.app.AppOpsManager
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
@@ -47,9 +48,16 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
         return
       }
 
+      // INTERVAL_BEST gives better granularity for "today so far" than INTERVAL_DAILY
+      val interval = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        UsageStatsManager.INTERVAL_BEST
+      } else {
+        UsageStatsManager.INTERVAL_DAILY
+      }
+
       val stats =
         usageStatsManager.queryUsageStats(
-          UsageStatsManager.INTERVAL_DAILY,
+          interval,
           startTime.toLong(),
           endTime.toLong()
         ) ?: emptyList()
@@ -77,6 +85,93 @@ class UsageStatsModule(private val reactContext: ReactApplicationContext) :
           appMap.putDouble("totalTimeMs", stat.totalTimeInForeground.toDouble())
           appMap.putDouble("totalTimeMinutes", stat.totalTimeInForeground.toDouble() / 60000.0)
           appMap.putDouble("lastTimeUsed", stat.lastTimeUsed.toDouble())
+          appArray.pushMap(appMap)
+        }
+
+      promise.resolve(appArray)
+    } catch (error: Exception) {
+      promise.reject("E_USAGE_STATS", error.message, error)
+    }
+  }
+
+  /**
+   * Uses queryUsageEvents to aggregate foreground time per app. Returns all apps that had
+   * any foreground time in the range (no bucket limit like INTERVAL_DAILY can have).
+   */
+  @ReactMethod
+  fun getUsageStatsFromEvents(startTime: Double, endTime: Double, promise: Promise) {
+    if (!hasPermission()) {
+      promise.reject("E_USAGE_PERMISSION", "Usage access permission is not granted")
+      return
+    }
+
+    try {
+      val usageStatsManager =
+        reactContext.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+
+      if (usageStatsManager == null) {
+        promise.reject("E_USAGE_SERVICE", "Usage stats service unavailable")
+        return
+      }
+
+      val usageEvents = usageStatsManager.queryEvents(
+        startTime.toLong(),
+        endTime.toLong()
+      ) ?: run {
+        promise.resolve(Arguments.createArray())
+        return
+      }
+
+      // Aggregate: ACTIVITY_RESUMED = 1 -> record start time; ACTIVITY_PAUSED = 2 / ACTIVITY_STOPPED = 3 -> add duration
+      val packageTimeMs = mutableMapOf<String, Long>()
+      val packageResumedMs = mutableMapOf<String, Long>()
+      val event = UsageEvents.Event()
+      val endMs = endTime.toLong()
+
+      while (usageEvents.hasNextEvent()) {
+        usageEvents.getNextEvent(event)
+        val pkg = event.packageName ?: continue
+        if (pkg == reactContext.packageName) continue
+
+        when (event.eventType) {
+          UsageEvents.Event.ACTIVITY_RESUMED -> {
+            packageResumedMs[pkg] = event.timeStamp
+          }
+          UsageEvents.Event.ACTIVITY_PAUSED, UsageEvents.Event.ACTIVITY_STOPPED -> {
+            val started = packageResumedMs.remove(pkg) ?: continue
+            val duration = (event.timeStamp - started).coerceAtLeast(0L)
+            packageTimeMs[pkg] = packageTimeMs.getOrDefault(pkg, 0L) + duration
+          }
+        }
+      }
+
+      // Add time for apps still in foreground (resumed but no pause yet)
+      for ((pkg, started) in packageResumedMs) {
+        val duration = (endMs - started).coerceAtLeast(0L)
+        packageTimeMs[pkg] = packageTimeMs.getOrDefault(pkg, 0L) + duration
+      }
+
+      val packageManager = reactContext.packageManager
+      val appArray = Arguments.createArray()
+
+      packageTimeMs
+        .filter { it.value > 0L }
+        .toList()
+        .sortedByDescending { it.second }
+        .forEach { (pkg, timeMs) ->
+          val appMap = Arguments.createMap()
+          val appName =
+            try {
+              val appInfo = packageManager.getApplicationInfo(pkg, 0)
+              packageManager.getApplicationLabel(appInfo).toString()
+            } catch (_: Exception) {
+              pkg
+            }
+          appMap.putString("packageName", pkg)
+          appMap.putString("appName", appName)
+          appMap.putDouble("totalTimeMs", timeMs.toDouble())
+          appMap.putDouble("totalTimeMinutes", timeMs.toDouble() / 60000.0)
+          appMap.putDouble("lastTimeUsed", 0.0)
           appArray.pushMap(appMap)
         }
 

@@ -43,6 +43,29 @@ export async function getUsageStatsBetween(startTime, endTime) {
   }
 }
 
+/**
+ * Uses event-based aggregation (queryUsageEvents) so all apps with usage in the range
+ * are returned. Use this when you need a complete list (e.g. "My app usage today" screen).
+ * Falls back to getUsageStatsBetween if the native method is unavailable.
+ */
+export async function getUsageStatsFromEventsBetween(startTime, endTime) {
+  if (Platform.OS !== 'android') return [];
+
+  if (UsageStatsModule?.getUsageStatsFromEvents) {
+    try {
+      const result = await UsageStatsModule.getUsageStatsFromEvents(startTime, endTime);
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      if (error?.code !== 'E_USAGE_PERMISSION') {
+        console.warn('UsageAccessService: events stats failed', error?.message);
+      }
+      return getUsageStatsBetween(startTime, endTime);
+    }
+  }
+
+  return getUsageStatsBetween(startTime, endTime);
+}
+
 export function getStartOfToday() {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
