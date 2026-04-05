@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react'
 import instance from '../../api/api_instance';
 import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import messaging from '@react-native-firebase/messaging';
+import { getToken } from '@react-native-firebase/messaging';
+import { ensureFcmReady } from '../../services/FCMSetup';
 
 
 const QRCodeScreen = ({ navigation }) => {
@@ -16,9 +17,9 @@ const QRCodeScreen = ({ navigation }) => {
     const getDeviceInfo = async () => {
       const id = await DeviceInfo.getUniqueId();
       const brand = DeviceInfo.getBrand();
-      const token = await messaging().getToken();
+      const messaging = await ensureFcmReady();
+      const token = await getToken(messaging);
       setDeviceId({ id, brand, token });
-
     };
     getDeviceInfo();
   }, [])
@@ -36,9 +37,13 @@ const QRCodeScreen = ({ navigation }) => {
       deviceBrand: deviceId.brand,
     });
 
-    const track_id = response?.data?.data?.child?.track_id ?? response?.data?.data?.child?.trackId ?? inputValue.trim();
+    const child = response?.data?.data?.child;
+    const track_id = child?.track_id ?? child?.trackId ?? inputValue.trim();
     if (track_id) {
       await AsyncStorage.setItem('trackid', String(track_id));
+    }
+    if (child?.id != null) {
+      await AsyncStorage.setItem('childId', String(child.id));
     }
     console.log(track_id)
       navigation.navigate('ConnectedScreen');

@@ -4,8 +4,11 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import ViewShot from "react-native-view-shot";
-import notifee, { EventType } from "@notifee/react-native";
-import { getMessaging, onMessage } from "@react-native-firebase/messaging";
+import {
+  getInitialNotification,
+  onMessage,
+  onNotificationOpenedApp,
+} from "@react-native-firebase/messaging";
 import Onboarding from "./screens/onboarding";
 import WhoseDevices from "./screens/WhoseDevices";
 import QRCodeScreen from "./screens/qrcode";
@@ -18,6 +21,13 @@ import { isPending, clearPending } from "./services/PendingScreenshotManager";
 import { restorePendingFromStorage } from "./services/PendingCameraCaptureManager";
 import { uploadScreenshot } from "./services/ScreenshotService";
 import { handleFCMCommand } from "./services/FCMCommandHandler";
+import {
+  ensureFcmReady,
+  isCommandMessage,
+  isUserBroadcastNotification,
+  notifyUserFromRemoteMessage,
+  subscribeFcmTokenRefresh,
+} from "./services/FCMSetup";
 import { initForegroundServiceManager } from "./services/ForegroundServiceManager";
 import { startDeviceTelemetrySync, stopDeviceTelemetrySync } from "./services/DeviceTelemetryService";
 const Stack = createNativeStackNavigator();
@@ -26,8 +36,6 @@ export default function App() {
   const viewShotRef = useRef(null);
   const navigationRef = useRef(null);
   const navReadyRef = useRef(false);
-  const openedFromNotificationRef = useRef(false);
-
   // Location permission only — location is sent only when parent sends REQUEST_LOCATION command
   useEffect(() => {
     const requestLocationPermission = async () => {
@@ -86,20 +94,42 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const messaging = getMessaging();
-    const unsubscribe = onMessage(messaging, (message) => {
-      // Show in-app alert for push notifications sent via /notifications/send (both child and parent see this)
-      if (message.notification && message.data?.type === "notification") {
-        const title = message.notification.title || "Notification";
-        const body = message.notification.body || "";
-        if (Alert?.alert) {
-          Alert.alert(title, body);
+    let unsubMessage;
+    let unsubToken;
+    let unsubOpened;
+
+    (async () => {
+      const messaging = await ensureFcmReady();
+
+      unsubMessage = onMessage(messaging, (message) => {
+        if (isCommandMessage(message)) {
+          handleFCMCommand(message, { isBackground: false });
+          return;
         }
-        return;
+        if (isUserBroadcastNotification(message)) {
+          notifyUserFromRemoteMessage(message);
+        }
+      });
+
+      unsubToken = subscribeFcmTokenRefresh();
+
+      const initial = await getInitialNotification(messaging);
+      if (initial && isUserBroadcastNotification(initial)) {
+        notifyUserFromRemoteMessage(initial);
       }
-      handleFCMCommand(message, { isBackground: false });
-    });
-    return () => unsubscribe();
+
+      unsubOpened = onNotificationOpenedApp(messaging, (remoteMessage) => {
+        if (remoteMessage && isUserBroadcastNotification(remoteMessage)) {
+          notifyUserFromRemoteMessage(remoteMessage);
+        }
+      });
+    })();
+
+    return () => {
+      unsubMessage?.();
+      unsubToken?.();
+      unsubOpened?.();
+    };
   }, []);
 
   useEffect(() => {
