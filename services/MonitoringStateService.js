@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NativeModules } from 'react-native';
 
 const LINKED_TRACK_ID_KEY = 'linked-track-id';
 const LAST_ACTIVITIES_SYNC_KEY = 'monitoring:last-activities-sync';
@@ -10,6 +11,13 @@ export async function setLinkedTrackId(trackId) {
     ['trackid', normalized],
     [LINKED_TRACK_ID_KEY, normalized],
   ]);
+  try {
+    if (NativeModules?.DeviceLinkStore?.setLinkedTrackId) {
+      await NativeModules.DeviceLinkStore.setLinkedTrackId(normalized);
+    }
+  } catch (e) {
+    console.warn('MonitoringStateService: native linked track id sync failed', e?.message);
+  }
 }
 
 export async function getLinkedTrackId() {
