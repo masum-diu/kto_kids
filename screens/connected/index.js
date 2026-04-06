@@ -5,29 +5,49 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Image,
-    Dimensions,
+    AppState,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const { width } = Dimensions.get('window')
+import { getLastActivitiesSync } from '../../services/MonitoringStateService';
 
 const ConnectedScreen = ({ navigation }) => {
     const [connectedDevice, setConnectedDevice] = useState(null);
+    const [lastSyncLabel, setLastSyncLabel] = useState('Not synced yet');
     // console.log(connectedDevice, "connectedDevice state")
     useEffect(() => {
+        const formatRelative = (timestamp) => {
+            const diff = Date.now() - Number(timestamp || 0);
+            if (diff < 60 * 1000) return 'Just now';
+            if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)} min ago`;
+            if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}h ago`;
+            return new Date(timestamp).toLocaleString();
+        };
 
-        const fetchConnectedDevice = async () => {
+        const refreshInfo = async () => {
             try {
                 const deviceData = await AsyncStorage.getItem('trackid');
                 if (deviceData) {
                     setConnectedDevice(deviceData);
                 }
+                const sync = await getLastActivitiesSync();
+                setLastSyncLabel(sync?.at ? formatRelative(sync.at) : 'Not synced yet');
             } catch (error) {
                 console.error('Error fetching connected device:', error);
             }
         };
-        fetchConnectedDevice();
+
+        refreshInfo();
+        const appStateSub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') {
+                refreshInfo();
+            }
+        });
+        const pollId = setInterval(refreshInfo, 60000);
+        return () => {
+            appStateSub.remove();
+            clearInterval(pollId);
+        };
     }, []);
 
     return (
@@ -67,7 +87,7 @@ const ConnectedScreen = ({ navigation }) => {
                     <View style={styles.divider} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Last Sync</Text>
-                        <Text style={styles.infoValue}>Just now</Text>
+                        <Text style={styles.infoValue}>{lastSyncLabel}</Text>
                     </View>
                 </View>
 

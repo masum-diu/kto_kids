@@ -19,7 +19,7 @@ notifee.onBackgroundEvent(async () => {});
 // FCM: when parent sends SCREENSHOT via /control/send-command, this runs even if app is in background/killed
 const messaging = getMessaging();
 setBackgroundMessageHandler(messaging, async (remoteMessage) => {
-  handleFCMCommand(remoteMessage, { isBackground: true });
+  await handleFCMCommand(remoteMessage, { isBackground: true });
 });
 
 // alert: false - prevents popup when native emits "error" on service stop (e.g. Strict Mode cleanup)

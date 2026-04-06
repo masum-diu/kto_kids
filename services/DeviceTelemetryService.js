@@ -6,10 +6,11 @@ import {
   getUsageStatsBetween,
   hasUsageAccessPermission,
 } from './UsageAccessService';
+import { getLinkedTrackId, markActivitiesSyncSuccess } from './MonitoringStateService';
 
 const DEVICE_STATUS_ENDPOINT = '/device-status/update';
 const ACTIVITIES_ENDPOINT = '/activities';
-const SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const SYNC_INTERVAL_MS = 1 * 60 * 1000;
 const LAST_USAGE_SYNC_KEY = 'usage-last-synced';
 const IGNORED_PACKAGES = new Set([
   'android',
@@ -114,6 +115,7 @@ async function syncUsageDelta(trackId) {
         durationMinutes: deltaMinutes,
         activityDate: todayKey,
       });
+      await markActivitiesSyncSuccess('telemetry');
       nextSnapshot[snapshotKey][entry.packageName] = currentMinutes;
     } catch (error) {
       console.warn('DeviceTelemetryService: activity sync failed', error?.response?.status, error?.message);
@@ -132,7 +134,7 @@ export async function syncDeviceTelemetry() {
   syncInFlight = true;
 
   try {
-    const trackId = await AsyncStorage.getItem('trackid');
+    const trackId = await getLinkedTrackId();
     if (!trackId || !trackId.trim()) {
       return;
     }

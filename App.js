@@ -103,7 +103,9 @@ export default function App() {
 
       unsubMessage = onMessage(messaging, (message) => {
         if (isCommandMessage(message)) {
-          handleFCMCommand(message, { isBackground: false });
+          handleFCMCommand(message, { isBackground: false }).catch((err) => {
+            console.warn('FCM foreground command failed', err?.message);
+          });
           return;
         }
         if (isUserBroadcastNotification(message)) {

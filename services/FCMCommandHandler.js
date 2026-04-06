@@ -20,6 +20,9 @@ import { getViewShotCapture } from './ScreenshotCaptureRegistry';
 import { getCameraCaptureHandler } from './CameraCaptureRegistry';
 import { setPending as setPendingCameraCapture } from './PendingCameraCaptureManager';
 import { sendCurrentLocation } from './LocationService';
+import { shouldProcessCommand } from './CommandDedupService';
+import { uploadHealthSnapshot, uploadUsageSnapshot } from './MonitoringSnapshotService';
+import { syncDeviceTelemetry } from './DeviceTelemetryService';
 
 const { ScreenshotModule, ScreenLock } = NativeModules;
 
@@ -183,10 +186,16 @@ async function handleRequestLocation(data, options = {}) {
 /**
  * Handle FCM data message - call from onMessage (foreground) or setBackgroundMessageHandler (background)
  */
-export function handleFCMCommand(remoteMessage, options = {}) {
+export async function handleFCMCommand(remoteMessage, options = {}) {
   const { isBackground = false } = options;
   const { command } = remoteMessage.data || {};
   if (!command) return;
+
+  const processThisCommand = await shouldProcessCommand(remoteMessage);
+  if (!processThisCommand) {
+    console.log('Skipping duplicate command:', command);
+    return;
+  }
 
   console.log('FCM command:', command);
 
@@ -201,6 +210,13 @@ export function handleFCMCommand(remoteMessage, options = {}) {
     case 'REQUEST_LOCATION':
     case 'LOCATION':
       return handleRequestLocation(remoteMessage.data, { isBackground });
+    case 'SYNC':
+    case 'RULES_SYNC':
+      return syncDeviceTelemetry();
+    case 'USAGE_SNAPSHOT':
+      return uploadUsageSnapshot('fcm');
+    case 'HEALTH_SNAPSHOT':
+      return uploadHealthSnapshot('fcm');
     default:
       console.log('Unhandled command:', command);
   }

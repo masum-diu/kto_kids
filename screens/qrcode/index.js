@@ -5,6 +5,7 @@ import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getToken } from '@react-native-firebase/messaging';
 import { ensureFcmReady } from '../../services/FCMSetup';
+import { setLinkedTrackId } from '../../services/MonitoringStateService';
 
 
 const QRCodeScreen = ({ navigation }) => {
@@ -40,7 +41,7 @@ const QRCodeScreen = ({ navigation }) => {
     const child = response?.data?.data?.child;
     const track_id = child?.track_id ?? child?.trackId ?? inputValue.trim();
     if (track_id) {
-      await AsyncStorage.setItem('trackid', String(track_id));
+      await setLinkedTrackId(String(track_id));
     }
     if (child?.id != null) {
       await AsyncStorage.setItem('childId', String(child.id));
